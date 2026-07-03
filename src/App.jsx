@@ -23,6 +23,7 @@ import {
   formatDate,
   formatTime,
   getOverallBestSectors,
+  formatLapTime,
 } from "./utils/f1Utils.js";
 
 import TimingTable from "./components/TimingTable.jsx";
@@ -282,8 +283,24 @@ export default function App() {
     setPitStops([]);
   };
 
-  // ===== Computed =====
-  const overallBestSectors = useMemo(() => getOverallBestSectors(laps), [laps]);
+  // Get overall best sectors for highlights
+  const overallBestSectors = useMemo(() => {
+    return getOverallBestSectors(laps);
+  }, [laps]);
+
+  const fastestLap = useMemo(() => {
+    if (!laps || laps.length === 0) return null;
+    const validLaps = laps.filter((l) => l.lap_duration != null);
+    if (validLaps.length === 0) return null;
+    return validLaps.reduce((min, lap) => lap.lap_duration < min.lap_duration ? lap : min, validLaps[0]);
+  }, [laps]);
+
+  const fastestPitStop = useMemo(() => {
+    if (!pitStops || pitStops.length === 0) return null;
+    const validPits = pitStops.filter((p) => p.pit_duration != null);
+    if (validPits.length === 0) return null;
+    return validPits.reduce((min, pit) => pit.pit_duration < min.pit_duration ? pit : min, validPits[0]);
+  }, [pitStops]);
 
   // Group sessions by meeting
   const groupedSessions = useMemo(() => {
@@ -618,8 +635,51 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Weather and race control side by side */}
-              <div className="dashboard-grid-2col">
+              {/* Session Highlights, Weather and race control */}
+              <div className="dashboard-grid-3col">
+                <div className="panel">
+                  <div className="panel-header">
+                    <div className="panel-title">🏆 Highlights</div>
+                  </div>
+                  <div className="panel-body-padded">
+                    <div style={{ marginBottom: "1rem" }}>
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", textTransform: "uppercase", marginBottom: "4px" }}>Fastest Lap</div>
+                      {fastestLap ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{ fontSize: "1.2rem", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--purple-sector)" }}>
+                            {formatLapTime(fastestLap.lap_duration)}
+                          </span>
+                          <span style={{ fontSize: "0.9rem", fontWeight: 600 }}>
+                            {drivers.find(d => d.driver_number === fastestLap.driver_number)?.name_acronym || fastestLap.driver_number}
+                          </span>
+                          <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>
+                            (Lap {fastestLap.lap_number})
+                          </span>
+                        </div>
+                      ) : (
+                        <span style={{ color: "var(--text-secondary)" }}>—</span>
+                      )}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", textTransform: "uppercase", marginBottom: "4px" }}>Fastest Pit Stop</div>
+                      {fastestPitStop ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{ fontSize: "1.2rem", fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--status-green)" }}>
+                            {fastestPitStop.pit_duration.toFixed(2)}s
+                          </span>
+                          <span style={{ fontSize: "0.9rem", fontWeight: 600 }}>
+                            {drivers.find(d => d.driver_number === fastestPitStop.driver_number)?.name_acronym || fastestPitStop.driver_number}
+                          </span>
+                          <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>
+                            (Lap {fastestPitStop.lap_number})
+                          </span>
+                        </div>
+                      ) : (
+                        <span style={{ color: "var(--text-secondary)" }}>—</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 <div className="panel">
                   <div className="panel-header">
                     <div className="panel-title">🌤️ Weather Conditions</div>

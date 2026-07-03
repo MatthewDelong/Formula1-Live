@@ -39,11 +39,40 @@ export default function PositionChart({ drivers, laps, positions }) {
     }
 
     // Get laps per driver and try to extract position from i_segment or use running position
+    const driverPosList = {};
+    if (positions) {
+      for (const p of positions) {
+        if (!driverPosList[p.driver_number]) driverPosList[p.driver_number] = [];
+        if (p.date) {
+          driverPosList[p.driver_number].push({ date: new Date(p.date).getTime(), pos: p.position });
+        }
+      }
+      for (const dn in driverPosList) {
+        driverPosList[dn].sort((a, b) => a.date - b.date);
+      }
+    }
+
     if (laps) {
       for (const lap of laps) {
         const dn = lap.driver_number;
         if (driverLapPositions[dn] !== undefined) {
-          driverLapPositions[dn][lap.lap_number] = lap.position;
+          let matchedPos = null;
+          if (lap.date_start) {
+            // Target the time around the end of the lap
+            const lapTime = new Date(lap.date_start).getTime() + (lap.lap_duration ? lap.lap_duration * 1000 : 0);
+            const posList = driverPosList[dn];
+            if (posList && posList.length > 0) {
+              matchedPos = posList[0].pos;
+              for (const p of posList) {
+                // Take positions up to a small buffer after the lap ends
+                if (p.date > lapTime + 5000) break;
+                matchedPos = p.pos;
+              }
+            }
+          }
+          if (matchedPos !== null) {
+            driverLapPositions[dn][lap.lap_number] = matchedPos;
+          }
         }
       }
     }

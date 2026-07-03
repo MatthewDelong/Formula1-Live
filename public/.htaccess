@@ -1,0 +1,3 @@
+<IfModule mod_headers.c>
+    Header set Content-Security-Policy "default-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' blob: https://api.openf1.org https://api.jolpi.ca https://raw.githubusercontent.com https://weather-bar.matthew-delong73.workers.dev https://openf1-proxy.matthew-delong73.workers.dev https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://media.formula1.com;"
+</IfModule>

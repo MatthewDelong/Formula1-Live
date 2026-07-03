@@ -693,7 +693,7 @@ export default function App() {
                     <div className="panel-title">📡 Race Control</div>
                   </div>
                   <div className="panel-body">
-                    <RaceControlFeed messages={raceControl} />
+                    <RaceControlFeed messages={raceControl} drivers={drivers} />
                   </div>
                 </div>
               </div>
@@ -799,7 +799,7 @@ export default function App() {
                   </span>
                 </div>
                 <div className="panel-body">
-                  <RaceControlFeed messages={raceControl} />
+                  <RaceControlFeed messages={raceControl} drivers={drivers} />
                 </div>
               </div>
             </div>

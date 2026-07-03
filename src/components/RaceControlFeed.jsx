@@ -1,7 +1,7 @@
 import React from 'react';
-import { formatTime } from '../utils/f1Utils.js';
+import { formatTime, getTeamColor } from '../utils/f1Utils.js';
 
-export default function RaceControlFeed({ messages }) {
+export default function RaceControlFeed({ messages, drivers }) {
   if (!messages || messages.length === 0) {
     return (
       <div className="empty-state">
@@ -12,47 +12,175 @@ export default function RaceControlFeed({ messages }) {
     );
   }
 
-  // Show most recent messages first, limit to 50
-  const recent = [...messages].reverse().slice(0, 50);
+  const trackLimitsCounts = {};
+  const activePenalties = [];
+  const feedMessages = [];
 
-  function getFlagClass(msg) {
-    const flag = msg.flag || '';
-    const cat = msg.category || '';
+  // Parse messages chronologically (assuming messages are oldest first or newest first? OpenF1 is newest first in our recent var, wait.
+  // Actually, let's reverse to process oldest to newest so "served" cancels earlier penalties.
+  const chronological = [...messages].reverse();
 
-    if (flag === 'GREEN' || cat === 'Flag' && msg.message?.includes('GREEN')) return 'rc-flag-green';
-    if (flag === 'YELLOW' || flag === 'DOUBLE YELLOW') return 'rc-flag-yellow';
-    if (flag === 'RED') return 'rc-flag-red';
-    if (flag === 'BLUE') return 'rc-flag-blue';
-    if (flag === 'CHEQUERED') return 'rc-flag-chequered';
-    if (cat === 'SafetyCar' || msg.message?.includes('SAFETY CAR')) return 'rc-flag-yellow';
-    if (cat === 'Drs') return 'rc-flag-green';
-    return '';
-  }
+  chronological.forEach(msg => {
+    const text = (msg.message || '').toUpperCase();
+    
+    // Extract driver: CAR 14 (ALO) or just CAR 14
+    let acr = '';
+    let num = '';
+    
+    const acrMatch = text.match(/CAR \d+\s*\(([A-Z]{3})\)/);
+    if (acrMatch) acr = acrMatch[1];
+    
+    const numMatch = text.match(/CAR (\d+)/);
+    if (numMatch) num = numMatch[1];
 
-  function getMessageIcon(msg) {
-    const cat = msg.category || '';
-    if (cat === 'Flag') return '🏴';
-    if (cat === 'SafetyCar') return '🚗';
-    if (cat === 'Drs') return '📶';
-    if (cat === 'CarEvent') return '🏎️';
-    if (cat === 'Other') return '📋';
-    return '📋';
-  }
+    const key = `${acr}_${num}`;
+    const hasDriver = acr || num;
+
+    let isPenaltyOrLimit = false;
+
+    if (text.includes('TRACK LIMIT')) {
+      if (hasDriver) {
+        trackLimitsCounts[key] = (trackLimitsCounts[key] || 0) + 1;
+      }
+      isPenaltyOrLimit = true;
+    } else if (text.includes('PENALTY') || text.includes('DRIVE THROUGH') || text.includes('STOP AND GO')) {
+      if (text.includes('SERVED')) {
+        // Remove from active penalties
+        if (hasDriver) {
+          // find last penalty for this driver and remove it
+          for (let i = activePenalties.length - 1; i >= 0; i--) {
+            if ((acr && activePenalties[i].acr === acr) || (num && activePenalties[i].num === num)) {
+              activePenalties.splice(i, 1);
+              break;
+            }
+          }
+        }
+      } else {
+        // Add penalty
+        activePenalties.push({
+          acr,
+          num,
+          message: msg.message,
+          time: msg.date
+        });
+      }
+      isPenaltyOrLimit = true;
+    }
+
+    if (!isPenaltyOrLimit) {
+      feedMessages.push(msg);
+    }
+  });
+
+  const getDriverByAcronymOrNum = (acr, num) => {
+    if (!drivers) return null;
+    let drv = null;
+    if (acr) drv = drivers.find(d => d.name_acronym === acr);
+    if (!drv && num) drv = drivers.find(d => parseInt(d.driver_number, 10) === parseInt(num, 10));
+    return drv;
+  };
+
+  // Convert track limits to array and sort by count descending
+  const trackLimitsArray = Object.entries(trackLimitsCounts)
+    .map(([key, count]) => {
+      const [acr, numStr] = key.split('_');
+      const drv = getDriverByAcronymOrNum(acr, numStr);
+      const acronym = drv ? drv.name_acronym : (acr || `C${numStr}`);
+      return {
+        acronym,
+        count,
+        color: drv ? getTeamColor(drv.team_name, drv.team_colour) : '#666'
+      };
+    })
+    .sort((a, b) => b.count - a.count);
 
   return (
-    <div className="race-control-feed">
-      {recent.map((msg, idx) => {
-        const flagClass = getFlagClass(msg);
-        return (
-          <div className="race-control-msg fade-in" key={idx} style={{ animationDelay: `${idx * 30}ms` }}>
-            <span className="rc-time">{formatTime(msg.date)}</span>
-            {flagClass && <div className={`rc-flag ${flagClass}`} />}
-            <span className="rc-message">
-              {msg.message || `${msg.category}: ${msg.flag || ''}`}
-            </span>
-          </div>
-        );
-      })}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%', overflowY: 'auto' }}>
+      
+      {/* PENALTIES PANEL */}
+      <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #333' }}>
+        <div style={{ backgroundColor: '#cc0000', color: 'white', textAlign: 'center', padding: '8px', fontWeight: 'bold', letterSpacing: '2px', fontSize: '0.9rem' }}>
+          PENALTIES
+        </div>
+        <div style={{ backgroundColor: '#1a1a1a', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {activePenalties.length === 0 ? (
+            <div style={{ color: '#888', textAlign: 'center', fontSize: '0.85rem' }}>No active penalties</div>
+          ) : activePenalties.reverse().map((pen, idx) => {
+            const drv = getDriverByAcronymOrNum(pen.acr, pen.num);
+            const color = drv ? getTeamColor(drv.team_name, drv.team_colour) : '#666';
+            const displayAcr = drv ? drv.name_acronym : (pen.acr || pen.num);
+            
+            return (
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+                {displayAcr && (
+                  <div style={{ backgroundColor: color, color: 'white', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.85rem', minWidth: '40px', textAlign: 'center' }}>
+                    {displayAcr}
+                  </div>
+                )}
+                <div style={{ color: '#ff6666', fontSize: '0.85rem', lineHeight: '1.3' }}>
+                  {pen.message} <span style={{ color: '#888' }}>({formatTime(pen.time)})</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* TRACK LIMITS PANEL */}
+      <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #333' }}>
+        <div style={{ backgroundColor: '#e65c00', color: 'white', textAlign: 'center', padding: '8px', fontWeight: 'bold', letterSpacing: '2px', fontSize: '0.9rem' }}>
+          TRACK LIMITS
+        </div>
+        <div style={{ backgroundColor: '#1a1a1a', padding: '12px' }}>
+          {trackLimitsArray.length === 0 ? (
+            <div style={{ color: '#888', textAlign: 'center', fontSize: '0.85rem' }}>No track limits recorded</div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: '8px' }}>
+              {trackLimitsArray.map(tl => (
+                <div key={tl.acronym} style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', height: '28px', backgroundColor: tl.color }}>
+                  <div style={{ flex: 1, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem' }}>
+                    {tl.acronym}
+                  </div>
+                  <div style={{ padding: '0 10px', backgroundColor: 'rgba(0,0,0,0.25)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                    {tl.count}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* OTHER MESSAGES */}
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '8px', paddingBottom: '4px', borderBottom: '1px solid #333' }}>
+          Other Messages
+        </div>
+        <div className="race-control-feed" style={{ maxHeight: '200px' }}>
+          {feedMessages.length === 0 ? (
+            <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-tertiary)' }}>No recent messages.</div>
+          ) : [...feedMessages].reverse().slice(0, 30).map((msg, idx) => {
+            const flag = msg.flag || '';
+            const cat = msg.category || '';
+            let flagClass = '';
+            if (flag === 'GREEN' || cat === 'Flag' && msg.message?.includes('GREEN')) flagClass = 'rc-flag-green';
+            else if (flag === 'YELLOW' || flag === 'DOUBLE YELLOW' || cat === 'SafetyCar' || msg.message?.includes('SAFETY CAR')) flagClass = 'rc-flag-yellow';
+            else if (flag === 'RED') flagClass = 'rc-flag-red';
+            
+            return (
+              <div className="race-control-msg fade-in" key={idx}>
+                <span className="rc-time">{formatTime(msg.date)}</span>
+                {flagClass && <div className={`rc-flag ${flagClass}`} />}
+                <span className="rc-message">
+                  {msg.message || `${msg.category}: ${msg.flag || ''}`}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
     </div>
   );
 }

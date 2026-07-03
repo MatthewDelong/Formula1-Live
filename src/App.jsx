@@ -1,24 +1,40 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useAutoRefresh } from './hooks/useAutoRefresh.js';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
+import { useAutoRefresh } from "./hooks/useAutoRefresh.js";
 import {
-  getSessions, getDrivers, getLaps, getStints, getPositions,
-  getIntervals, getWeather, getRaceControl, getPitStops
-} from './services/api.js';
+  getSessions,
+  getDrivers,
+  getLaps,
+  getStints,
+  getPositions,
+  getIntervals,
+  getWeather,
+  getRaceControl,
+  getPitStops,
+} from "./services/api.js";
 import {
-  getAvailableYears, getSessionTypeName, formatDate, formatTime,
-  getOverallBestSectors
-} from './utils/f1Utils.js';
+  getAvailableYears,
+  getSessionTypeName,
+  formatDate,
+  formatTime,
+  getOverallBestSectors,
+} from "./utils/f1Utils.js";
 
-import TimingTable from './components/TimingTable.jsx';
-import WeatherWidget from './components/WeatherWidget.jsx';
-import GapVisualization from './components/GapVisualization.jsx';
-import RaceControlFeed from './components/RaceControlFeed.jsx';
-import TireStrategy from './components/TireStrategy.jsx';
-import LapTimeChart from './components/LapTimeChart.jsx';
-import SpeedComparison from './components/SpeedComparison.jsx';
-import PositionChart from './components/PositionChart.jsx';
-import PitStopTable from './components/PitStopTable.jsx';
-
+import TimingTable from "./components/TimingTable.jsx";
+import WeatherWidget from "./components/WeatherWidget.jsx";
+import GapVisualization from "./components/GapVisualization.jsx";
+import RaceControlFeed from "./components/RaceControlFeed.jsx";
+import TireStrategy from "./components/TireStrategy.jsx";
+import LapTimeChart from "./components/LapTimeChart.jsx";
+import SpeedComparison from "./components/SpeedComparison.jsx";
+import PositionChart from "./components/PositionChart.jsx";
+import PitStopTable from "./components/PitStopTable.jsx";
+import ReloadPrompt from "./components/ReloadPrompt.jsx";
 const REFRESH_INTERVAL = 10000; // 10 seconds
 const years = getAvailableYears();
 
@@ -29,9 +45,9 @@ export default function App() {
   const [selectedSessionKey, setSelectedSessionKey] = useState(null);
   const [selectedSession, setSelectedSession] = useState(null);
   const [loadingSessions, setLoadingSessions] = useState(true);
-  const [activeTab, setActiveTab] = useState('timing');
+  const [activeTab, setActiveTab] = useState("timing");
   const [isLive, setIsLive] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const [connectionStatus, setConnectionStatus] = useState("connecting");
   const [refreshInterval, setRefreshInterval] = useState(REFRESH_INTERVAL);
   const [autoRefresh, setAutoRefresh] = useState(true);
 
@@ -62,7 +78,9 @@ export default function App() {
         const data = await getSessions({ year: selectedYear });
         if (!cancelled && data) {
           // Sort sessions chronologically (ascending by date)
-          const chronological = data.sort((a, b) => new Date(a.date_start) - new Date(b.date_start));
+          const chronological = data.sort(
+            (a, b) => new Date(a.date_start) - new Date(b.date_start),
+          );
           // Store sessions sorted descending for the dropdown (most recent first)
           const descending = [...chronological].reverse();
           setSessions(descending);
@@ -73,7 +91,7 @@ export default function App() {
             let bestSession = null;
 
             // 1. Check if there's a currently LIVE session
-            const liveSession = chronological.find(s => {
+            const liveSession = chronological.find((s) => {
               const start = new Date(s.date_start);
               const end = new Date(s.date_end);
               return now >= start && now <= end;
@@ -84,23 +102,28 @@ export default function App() {
               setIsLive(true);
             } else {
               // 2. Find the next upcoming session (first session that hasn't started)
-              const upcomingSession = chronological.find(s => {
+              const upcomingSession = chronological.find((s) => {
                 const start = new Date(s.date_start);
                 return now < start;
               });
 
               // 3. Find the most recently completed session
-              const pastSessions = chronological.filter(s => {
+              const pastSessions = chronological.filter((s) => {
                 const end = new Date(s.date_end);
                 return now > end;
               });
-              const lastCompleted = pastSessions.length > 0 ? pastSessions[pastSessions.length - 1] : null;
+              const lastCompleted =
+                pastSessions.length > 0
+                  ? pastSessions[pastSessions.length - 1]
+                  : null;
 
               if (upcomingSession && lastCompleted) {
                 // Prefer the most recently completed session from the same meeting (weekend)
                 // or one that completed within the last 4 hours
-                const hoursSinceEnd = (now - new Date(lastCompleted.date_end)) / (1000 * 60 * 60);
-                const sameWeekend = upcomingSession.meeting_key === lastCompleted.meeting_key;
+                const hoursSinceEnd =
+                  (now - new Date(lastCompleted.date_end)) / (1000 * 60 * 60);
+                const sameWeekend =
+                  upcomingSession.meeting_key === lastCompleted.meeting_key;
 
                 if (sameWeekend || hoursSinceEnd < 4) {
                   bestSession = lastCompleted;
@@ -128,13 +151,15 @@ export default function App() {
           }
         }
       } catch (err) {
-        console.error('Failed to load sessions:', err);
+        console.error("Failed to load sessions:", err);
       } finally {
         if (!cancelled) setLoadingSessions(false);
       }
     }
     loadSessions();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [selectedYear]);
 
   // ===== Load Session Data =====
@@ -143,32 +168,44 @@ export default function App() {
 
     try {
       setDataError(null);
-      const [driversData, lapsData, stintsData, positionsData, intervalsData, weatherData, rcData, pitData] =
-        await Promise.all([
-          getDrivers(selectedSessionKey).catch(() => []),
-          getLaps(selectedSessionKey).catch(() => []),
-          getStints(selectedSessionKey).catch(() => []),
-          getPositions(selectedSessionKey).catch(() => []),
-          getIntervals(selectedSessionKey).catch(() => []),
-          getWeather(selectedSessionKey).catch(() => []),
-          getRaceControl(selectedSessionKey).catch(() => []),
-          getPitStops(selectedSessionKey).catch(() => []),
-        ]);
+      const [
+        driversData,
+        lapsData,
+        stintsData,
+        positionsData,
+        intervalsData,
+        weatherData,
+        rcData,
+        pitData,
+      ] = await Promise.all([
+        getDrivers(selectedSessionKey).catch(() => []),
+        getLaps(selectedSessionKey).catch(() => []),
+        getStints(selectedSessionKey).catch(() => []),
+        getPositions(selectedSessionKey).catch(() => []),
+        getIntervals(selectedSessionKey).catch(() => []),
+        getWeather(selectedSessionKey).catch(() => []),
+        getRaceControl(selectedSessionKey).catch(() => []),
+        getPitStops(selectedSessionKey).catch(() => []),
+      ]);
 
       setDrivers(driversData || []);
       setLaps(lapsData || []);
       setStints(stintsData || []);
       setPositions(positionsData || []);
       setIntervals(intervalsData || []);
-      setWeather(weatherData && weatherData.length > 0 ? weatherData[weatherData.length - 1] : null);
+      setWeather(
+        weatherData && weatherData.length > 0
+          ? weatherData[weatherData.length - 1]
+          : null,
+      );
       setRaceControl(rcData || []);
       setPitStops(pitData || []);
       setLastUpdated(new Date());
       setCountdown(refreshInterval / 1000);
-      setConnectionStatus('connected');
+      setConnectionStatus("connected");
     } catch (err) {
       setDataError(err.message);
-      setConnectionStatus('disconnected');
+      setConnectionStatus("disconnected");
     } finally {
       setDataLoading(false);
     }
@@ -196,7 +233,7 @@ export default function App() {
       }, refreshInterval);
 
       countdownRef.current = setInterval(() => {
-        setCountdown(prev => Math.max(0, prev - 1));
+        setCountdown((prev) => Math.max(0, prev - 1));
       }, 1000);
     }
 
@@ -210,7 +247,7 @@ export default function App() {
   const handleSessionChange = (e) => {
     const key = parseInt(e.target.value, 10);
     setSelectedSessionKey(key);
-    const session = sessions.find(s => s.session_key === key);
+    const session = sessions.find((s) => s.session_key === key);
     setSelectedSession(session);
     if (session) {
       const now = new Date();
@@ -242,11 +279,11 @@ export default function App() {
   const groupedSessions = useMemo(() => {
     const groups = {};
     for (const s of sessions) {
-      const meetingKey = s.meeting_key || s.location || 'Unknown';
+      const meetingKey = s.meeting_key || s.location || "Unknown";
       if (!groups[meetingKey]) {
         groups[meetingKey] = {
-          meetingName: s.circuit_short_name || s.location || 'Unknown',
-          country: s.country_name || '',
+          meetingName: s.circuit_short_name || s.location || "Unknown",
+          country: s.country_name || "",
           sessions: [],
         };
       }
@@ -258,18 +295,18 @@ export default function App() {
   // Get current flag from race control
   const currentFlag = useMemo(() => {
     if (!raceControl || raceControl.length === 0) return null;
-    const flags = raceControl.filter(m => m.category === 'Flag' || m.flag);
+    const flags = raceControl.filter((m) => m.category === "Flag" || m.flag);
     if (flags.length === 0) return null;
     return flags[flags.length - 1];
   }, [raceControl]);
 
   const flagClass = useMemo(() => {
-    if (!currentFlag) return 'flag-green';
-    const f = currentFlag.flag || '';
-    if (f === 'RED') return 'flag-red';
-    if (f === 'YELLOW' || f === 'DOUBLE YELLOW') return 'flag-yellow';
-    if (f.includes('SAFETY')) return 'flag-sc';
-    return 'flag-green';
+    if (!currentFlag) return "flag-green";
+    const f = currentFlag.flag || "";
+    if (f === "RED") return "flag-red";
+    if (f === "YELLOW" || f === "DOUBLE YELLOW") return "flag-yellow";
+    if (f.includes("SAFETY")) return "flag-sc";
+    return "flag-green";
   }, [currentFlag]);
 
   // ===== Render =====
@@ -292,12 +329,21 @@ export default function App() {
 
         <div className="header-center">
           <div className="session-selector">
-            <select className="year-select" value={selectedYear} onChange={handleYearChange} id="year-selector">
-              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            <select
+              className="year-select"
+              value={selectedYear}
+              onChange={handleYearChange}
+              id="year-selector"
+            >
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
             </select>
             <select
               className="session-select"
-              value={selectedSessionKey || ''}
+              value={selectedSessionKey || ""}
               onChange={handleSessionChange}
               disabled={loadingSessions}
               id="session-selector"
@@ -308,10 +354,14 @@ export default function App() {
                 <option>No sessions found</option>
               ) : (
                 Object.entries(groupedSessions).map(([meetKey, group]) => (
-                  <optgroup key={meetKey} label={`🏁 ${group.meetingName} — ${group.country}`}>
-                    {group.sessions.map(s => (
+                  <optgroup
+                    key={meetKey}
+                    label={`🏁 ${group.meetingName} — ${group.country}`}
+                  >
+                    {group.sessions.map((s) => (
                       <option key={s.session_key} value={s.session_key}>
-                        {getSessionTypeName(s.session_name)} — {formatDate(s.date_start)}
+                        {getSessionTypeName(s.session_name)} —{" "}
+                        {formatDate(s.date_start)}
                       </option>
                     ))}
                   </optgroup>
@@ -330,17 +380,25 @@ export default function App() {
           <button
             className="btn btn-sm"
             onClick={() => setAutoRefresh(!autoRefresh)}
-            title={autoRefresh ? 'Pause auto-refresh' : 'Resume auto-refresh'}
+            title={autoRefresh ? "Pause auto-refresh" : "Resume auto-refresh"}
           >
-            {autoRefresh ? '⏸' : '▶️'} {autoRefresh ? 'Auto' : 'Paused'}
+            {autoRefresh ? "⏸" : "▶️"} {autoRefresh ? "Auto" : "Paused"}
           </button>
-          <button className="btn btn-sm btn-primary" onClick={loadData} title="Refresh now">
+          <button
+            className="btn btn-sm btn-primary"
+            onClick={loadData}
+            title="Refresh now"
+          >
             🔄 Refresh
           </button>
           <div className="connection-status">
             <span className={`connection-dot ${connectionStatus}`} />
-            <span style={{ color: 'var(--text-tertiary)' }}>
-              {connectionStatus === 'connected' ? 'Connected' : connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+            <span style={{ color: "var(--text-tertiary)" }}>
+              {connectionStatus === "connected"
+                ? "Connected"
+                : connectionStatus === "connecting"
+                  ? "Connecting..."
+                  : "Disconnected"}
             </span>
           </div>
         </div>
@@ -351,7 +409,9 @@ export default function App() {
         <div className="auto-update-bar">
           <div
             className="auto-update-progress"
-            style={{ width: `${((refreshInterval / 1000 - countdown) / (refreshInterval / 1000)) * 100}%` }}
+            style={{
+              width: `${((refreshInterval / 1000 - countdown) / (refreshInterval / 1000)) * 100}%`,
+            }}
           />
         </div>
       )}
@@ -361,22 +421,30 @@ export default function App() {
         <div className="status-item">
           <span className="status-label">Session</span>
           <span className="status-value">
-            {selectedSession ? getSessionTypeName(selectedSession.session_name) : '—'}
+            {selectedSession
+              ? getSessionTypeName(selectedSession.session_name)
+              : "—"}
           </span>
         </div>
         <div className="status-item">
           <span className="status-label">Circuit</span>
           <span className="status-value">
-            {selectedSession?.circuit_short_name || selectedSession?.location || '—'}
+            {selectedSession?.circuit_short_name ||
+              selectedSession?.location ||
+              "—"}
           </span>
         </div>
         <div className="status-item">
           <span className="status-label">Country</span>
-          <span className="status-value">{selectedSession?.country_name || '—'}</span>
+          <span className="status-value">
+            {selectedSession?.country_name || "—"}
+          </span>
         </div>
         <div className="status-item">
           <span className="status-label">Date</span>
-          <span className="status-value">{formatDate(selectedSession?.date_start)}</span>
+          <span className="status-value">
+            {formatDate(selectedSession?.date_start)}
+          </span>
         </div>
         {weather && (
           <>
@@ -386,21 +454,25 @@ export default function App() {
             </div>
             <div className="status-item">
               <span className="status-icon">🛤️</span>
-              <span className="status-value">{weather.track_temperature}°C</span>
+              <span className="status-value">
+                {weather.track_temperature}°C
+              </span>
             </div>
           </>
         )}
         {currentFlag && (
           <div className="status-item">
             <span className={`flag-indicator ${flagClass}`}>
-              🏴 {currentFlag.flag || 'GREEN'}
+              🏴 {currentFlag.flag || "GREEN"}
             </span>
           </div>
         )}
         {lastUpdated && (
-          <div className="status-item" style={{ marginLeft: 'auto' }}>
+          <div className="status-item" style={{ marginLeft: "auto" }}>
             <span className="status-label">Last Update</span>
-            <span className="status-value">{formatTime(lastUpdated.toISOString())}</span>
+            <span className="status-value">
+              {formatTime(lastUpdated.toISOString())}
+            </span>
           </div>
         )}
       </div>
@@ -410,19 +482,34 @@ export default function App() {
         <div className="content-area">
           {/* Tabs */}
           <div className="tabs">
-            <button className={`tab ${activeTab === 'timing' ? 'active' : ''}`} onClick={() => setActiveTab('timing')}>
+            <button
+              className={`tab ${activeTab === "timing" ? "active" : ""}`}
+              onClick={() => setActiveTab("timing")}
+            >
               ⏱️ Live Timing
             </button>
-            <button className={`tab ${activeTab === 'gaps' ? 'active' : ''}`} onClick={() => setActiveTab('gaps')}>
+            <button
+              className={`tab ${activeTab === "gaps" ? "active" : ""}`}
+              onClick={() => setActiveTab("gaps")}
+            >
               📊 Gaps &amp; Intervals
             </button>
-            <button className={`tab ${activeTab === 'charts' ? 'active' : ''}`} onClick={() => setActiveTab('charts')}>
+            <button
+              className={`tab ${activeTab === "charts" ? "active" : ""}`}
+              onClick={() => setActiveTab("charts")}
+            >
               📈 Charts
             </button>
-            <button className={`tab ${activeTab === 'strategy' ? 'active' : ''}`} onClick={() => setActiveTab('strategy')}>
+            <button
+              className={`tab ${activeTab === "strategy" ? "active" : ""}`}
+              onClick={() => setActiveTab("strategy")}
+            >
               🔄 Strategy
             </button>
-            <button className={`tab ${activeTab === 'racecontrol' ? 'active' : ''}`} onClick={() => setActiveTab('racecontrol')}>
+            <button
+              className={`tab ${activeTab === "racecontrol" ? "active" : ""}`}
+              onClick={() => setActiveTab("racecontrol")}
+            >
               📡 Race Control
             </button>
           </div>
@@ -438,11 +525,30 @@ export default function App() {
           {/* Error State */}
           {dataError && !dataLoading && (
             <div className="panel fade-in">
-              <div className="panel-body-padded" style={{ color: 'var(--status-red)', textAlign: 'center', padding: '2rem' }}>
-                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>⚠️</div>
-                <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Error Loading Data</div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)' }}>{dataError}</div>
-                <button className="btn btn-primary" onClick={loadData} style={{ marginTop: '1rem' }}>
+              <div
+                className="panel-body-padded"
+                style={{
+                  color: "var(--status-red)",
+                  textAlign: "center",
+                  padding: "2rem",
+                }}
+              >
+                <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>
+                  ⚠️
+                </div>
+                <div style={{ fontWeight: 600, marginBottom: "0.5rem" }}>
+                  Error Loading Data
+                </div>
+                <div
+                  style={{ fontSize: "0.85rem", color: "var(--text-tertiary)" }}
+                >
+                  {dataError}
+                </div>
+                <button
+                  className="btn btn-primary"
+                  onClick={loadData}
+                  style={{ marginTop: "1rem" }}
+                >
                   Try Again
                 </button>
               </div>
@@ -450,15 +556,25 @@ export default function App() {
           )}
 
           {/* ===== TIMING TAB ===== */}
-          {activeTab === 'timing' && !dataLoading && (
+          {activeTab === "timing" && !dataLoading && (
             <div className="dashboard-grid fade-in">
               {/* Timing Table */}
               <div className="panel">
                 <div className="panel-header">
                   <div className="panel-title">
                     ⏱️ Live Timing
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', fontWeight: 400 }}>
-                      ({drivers.length > 0 ? new Set(drivers.map(d => d.driver_number)).size : 0} drivers)
+                    <span
+                      style={{
+                        fontSize: "0.7rem",
+                        color: "var(--text-tertiary)",
+                        fontWeight: 400,
+                      }}
+                    >
+                      (
+                      {drivers.length > 0
+                        ? new Set(drivers.map((d) => d.driver_number)).size
+                        : 0}{" "}
+                      drivers)
                     </span>
                   </div>
                 </div>
@@ -497,7 +613,7 @@ export default function App() {
           )}
 
           {/* ===== GAPS TAB ===== */}
-          {activeTab === 'gaps' && !dataLoading && (
+          {activeTab === "gaps" && !dataLoading && (
             <div className="dashboard-grid fade-in">
               <div className="panel">
                 <div className="panel-header">
@@ -517,14 +633,18 @@ export default function App() {
                   <div className="panel-title">🏎️ Best Lap Comparison</div>
                 </div>
                 <div className="panel-body">
-                  <SpeedComparison drivers={drivers} laps={laps} positions={positions} />
+                  <SpeedComparison
+                    drivers={drivers}
+                    laps={laps}
+                    positions={positions}
+                  />
                 </div>
               </div>
             </div>
           )}
 
           {/* ===== CHARTS TAB ===== */}
-          {activeTab === 'charts' && !dataLoading && (
+          {activeTab === "charts" && !dataLoading && (
             <div className="dashboard-grid fade-in">
               <div className="panel">
                 <div className="panel-header">
@@ -539,21 +659,29 @@ export default function App() {
                   <div className="panel-title">📊 Position Changes</div>
                 </div>
                 <div className="panel-body">
-                  <PositionChart drivers={drivers} laps={laps} positions={positions} />
+                  <PositionChart
+                    drivers={drivers}
+                    laps={laps}
+                    positions={positions}
+                  />
                 </div>
               </div>
             </div>
           )}
 
           {/* ===== STRATEGY TAB ===== */}
-          {activeTab === 'strategy' && !dataLoading && (
+          {activeTab === "strategy" && !dataLoading && (
             <div className="dashboard-grid fade-in">
               <div className="panel">
                 <div className="panel-header">
                   <div className="panel-title">🔄 Tire Strategy Overview</div>
                 </div>
                 <div className="panel-body">
-                  <TireStrategy drivers={drivers} stints={stints} positions={positions} />
+                  <TireStrategy
+                    drivers={drivers}
+                    stints={stints}
+                    positions={positions}
+                  />
                 </div>
               </div>
               <div className="panel">
@@ -568,12 +696,17 @@ export default function App() {
           )}
 
           {/* ===== RACE CONTROL TAB ===== */}
-          {activeTab === 'racecontrol' && !dataLoading && (
+          {activeTab === "racecontrol" && !dataLoading && (
             <div className="dashboard-grid fade-in">
               <div className="panel">
                 <div className="panel-header">
                   <div className="panel-title">📡 Race Control Feed</div>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
+                  <span
+                    style={{
+                      fontSize: "0.7rem",
+                      color: "var(--text-tertiary)",
+                    }}
+                  >
                     {raceControl.length} messages
                   </span>
                 </div>
@@ -587,19 +720,24 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer style={{
-        padding: '0.75rem 1.25rem',
-        borderTop: '1px solid var(--border-primary)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        fontSize: '0.7rem',
-        color: 'var(--text-tertiary)',
-        background: 'var(--bg-secondary)',
-      }}>
-        <span>Powered by OpenF1 API • Data refreshes every {refreshInterval / 1000}s</span>
+      <footer
+        style={{
+          padding: "0.75rem 1.25rem",
+          borderTop: "1px solid var(--border-primary)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          fontSize: "0.7rem",
+          color: "var(--text-tertiary)",
+          background: "var(--bg-secondary)",
+        }}
+      >
+        <span>
+          Powered by OpenF1 API • Data refreshes every {refreshInterval / 1000}s
+        </span>
         <span>F1 Live Timings Dashboard © {new Date().getFullYear()}</span>
       </footer>
+      <ReloadPrompt />
     </>
   );
 }

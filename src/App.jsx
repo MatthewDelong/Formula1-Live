@@ -50,6 +50,16 @@ export default function App() {
   const [connectionStatus, setConnectionStatus] = useState("connecting");
   const [refreshInterval, setRefreshInterval] = useState(REFRESH_INTERVAL);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [useCelsius, setUseCelsius] = useState(() => localStorage.getItem("useCelsius") !== "false");
+  const [useKmh, setUseKmh] = useState(() => localStorage.getItem("useKmh") !== "false");
+
+  useEffect(() => {
+    localStorage.setItem("useCelsius", useCelsius);
+  }, [useCelsius]);
+
+  useEffect(() => {
+    localStorage.setItem("useKmh", useKmh);
+  }, [useKmh]);
 
   // ===== Data State =====
   const [drivers, setDrivers] = useState([]);
@@ -377,6 +387,22 @@ export default function App() {
             <span>Next update:</span>
             <span className="refresh-countdown">{countdown}s</span>
           </div>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <button
+              className="btn btn-sm"
+              onClick={() => setUseCelsius(!useCelsius)}
+              title="Toggle Temperature Unit"
+            >
+              🌡️ {useCelsius ? "°C" : "°F"}
+            </button>
+            <button
+              className="btn btn-sm"
+              onClick={() => setUseKmh(!useKmh)}
+              title="Toggle Speed Unit"
+            >
+              💨 {useKmh ? "km/h" : "mph"}
+            </button>
+          </div>
           <button
             className="btn btn-sm"
             onClick={() => setAutoRefresh(!autoRefresh)}
@@ -450,12 +476,14 @@ export default function App() {
           <>
             <div className="status-item">
               <span className="status-icon">🌡️</span>
-              <span className="status-value">{weather.air_temperature}°C</span>
+              <span className="status-value">
+                {useCelsius ? weather.air_temperature : Math.round(weather.air_temperature * 9/5 + 32)}°{useCelsius ? 'C' : 'F'}
+              </span>
             </div>
             <div className="status-item">
               <span className="status-icon">🛤️</span>
               <span className="status-value">
-                {weather.track_temperature}°C
+                {useCelsius ? weather.track_temperature : Math.round(weather.track_temperature * 9/5 + 32)}°{useCelsius ? 'C' : 'F'}
               </span>
             </div>
           </>
@@ -597,7 +625,7 @@ export default function App() {
                     <div className="panel-title">🌤️ Weather Conditions</div>
                   </div>
                   <div className="panel-body">
-                    <WeatherWidget weather={weather} />
+                    <WeatherWidget weather={weather} useCelsius={useCelsius} useKmh={useKmh} />
                   </div>
                 </div>
                 <div className="panel">

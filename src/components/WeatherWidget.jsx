@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function WeatherWidget({ weather }) {
+export default function WeatherWidget({ weather, useCelsius = true, useKmh = false }) {
   if (!weather) {
     return (
       <div className="weather-widget">
@@ -45,12 +45,12 @@ export default function WeatherWidget({ weather }) {
     <div className="weather-widget">
       <div className="weather-item">
         <div className="weather-icon">🌡️</div>
-        <div className="weather-value">{weather.air_temperature != null ? `${weather.air_temperature}°C` : '—'}</div>
+        <div className="weather-value">{weather.air_temperature != null ? (useCelsius ? `${weather.air_temperature}°C` : `${Math.round(weather.air_temperature * 9/5 + 32)}°F`) : '—'}</div>
         <div className="weather-label">Air Temp</div>
       </div>
       <div className="weather-item">
         <div className="weather-icon">🛤️</div>
-        <div className="weather-value">{weather.track_temperature != null ? `${weather.track_temperature}°C` : '—'}</div>
+        <div className="weather-value">{weather.track_temperature != null ? (useCelsius ? `${weather.track_temperature}°C` : `${Math.round(weather.track_temperature * 9/5 + 32)}°F`) : '—'}</div>
         <div className="weather-label">Track Temp</div>
       </div>
       <div className="weather-item">
@@ -61,9 +61,18 @@ export default function WeatherWidget({ weather }) {
       <div className="weather-item">
         <div className="weather-icon">💨</div>
         <div className="weather-value">
-          {weather.wind_speed != null ? `${weather.wind_speed} m/s` : '—'}
+          {weather.wind_speed != null ? (useKmh ? `${(weather.wind_speed * 3.6).toFixed(1)} km/h` : `${(weather.wind_speed * 2.23694).toFixed(1)} mph`) : '—'}
         </div>
-        <div className="weather-label">Wind {weather.wind_direction != null ? `${weather.wind_direction}°` : ''}</div>
+        <div className="weather-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          Wind 
+          {weather.wind_direction != null && (
+            <span style={{ 
+              display: 'inline-block', 
+              transform: `rotate(${weather.wind_direction + 180}deg)`,
+              fontSize: '0.85rem'
+            }}>↑</span>
+          )}
+        </div>
       </div>
       <div className="weather-item">
         <div className="weather-icon">{weatherIcon}</div>

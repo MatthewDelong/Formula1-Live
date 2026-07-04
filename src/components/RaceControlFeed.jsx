@@ -164,9 +164,11 @@ export default function RaceControlFeed({ messages, drivers }) {
             const flag = msg.flag || '';
             const cat = msg.category || '';
             let flagClass = '';
-            if (flag === 'GREEN' || cat === 'Flag' && msg.message?.includes('GREEN')) flagClass = 'rc-flag-green';
+            if (flag === 'GREEN' || (cat === 'Flag' && msg.message?.includes('GREEN'))) flagClass = 'rc-flag-green';
             else if (flag === 'YELLOW' || flag === 'DOUBLE YELLOW' || cat === 'SafetyCar' || msg.message?.includes('SAFETY CAR')) flagClass = 'rc-flag-yellow';
-            else if (flag === 'RED') flagClass = 'rc-flag-red';
+            else if (flag === 'CHEQUERED' || msg.message?.includes('CHEQUERED')) flagClass = 'rc-flag-chequered';
+            else if (flag === 'RED' || msg.message?.includes('RED FLAG')) flagClass = 'rc-flag-red';
+            else if (flag === 'BLACK AND WHITE' || msg.message?.includes('BLACK AND WHITE')) flagClass = 'rc-flag-black-white';
             
             return (
               <div className="race-control-msg fade-in" key={idx}>

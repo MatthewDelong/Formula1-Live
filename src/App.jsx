@@ -32,6 +32,7 @@ import GapVisualization from "./components/GapVisualization.jsx";
 import RaceControlFeed from "./components/RaceControlFeed.jsx";
 import TireStrategy from "./components/TireStrategy.jsx";
 import LapTimeChart from "./components/LapTimeChart.jsx";
+import Standings from "./components/Standings.jsx";
 import SpeedComparison from "./components/SpeedComparison.jsx";
 import PositionChart from "./components/PositionChart.jsx";
 import PitStopTable from "./components/PitStopTable.jsx";
@@ -557,6 +558,12 @@ export default function App() {
             >
               📡 Race Control
             </button>
+            <button
+              className={`tab ${activeTab === "standings" ? "active" : ""}`}
+              onClick={() => setActiveTab("standings")}
+            >
+              🏆 Standings
+            </button>
           </div>
 
           {/* Loading State */}
@@ -803,6 +810,11 @@ export default function App() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* ===== STANDINGS TAB ===== */}
+          {activeTab === "standings" && (
+            <Standings year={selectedYear} />
           )}
         </div>
       </main>

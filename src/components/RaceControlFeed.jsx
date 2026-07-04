@@ -16,9 +16,8 @@ export default function RaceControlFeed({ messages, drivers }) {
   const activePenalties = [];
   const feedMessages = [];
 
-  // Parse messages chronologically (assuming messages are oldest first or newest first? OpenF1 is newest first in our recent var, wait.
-  // Actually, let's reverse to process oldest to newest so "served" cancels earlier penalties.
-  const chronological = [...messages].reverse();
+  // OpenF1 returns messages oldest-first chronologically. We process them in this order so "served" cancels earlier penalties.
+  const chronological = messages || [];
 
   chronological.forEach(msg => {
     const text = (msg.message || '').toUpperCase();

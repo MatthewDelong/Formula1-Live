@@ -568,6 +568,31 @@ input, select { font-family: inherit; }
   font-size: 0.7rem;
 }
 
+/* Timing colors (Purple/Green/Yellow) */
+.time-purple {
+  color: var(--purple-sector) !important;
+  font-weight: 700;
+  text-shadow: 0 0 5px rgba(168, 85, 247, 0.4);
+}
+
+.time-green {
+  color: var(--green-sector) !important;
+  font-weight: 700;
+  text-shadow: 0 0 5px rgba(34, 197, 94, 0.4);
+}
+
+.time-yellow {
+  color: var(--yellow-sector) !important;
+}
+
+.time-red {
+  color: var(--red-sector) !important;
+}
+
+.time-white {
+  color: var(--white-sector) !important;
+}
+
 /* ===========================
    WEATHER WIDGET
    =========================== */

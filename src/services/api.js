@@ -5,6 +5,7 @@
  */
 
 const BASE_URL = 'https://openf1-proxy.matthew-delong73.workers.dev/v1';
+const FALLBACK_URL = 'https://api.openf1.org/v1';
 
 // Simple request queue to stagger concurrent requests
 let requestQueue = Promise.resolve();
@@ -14,22 +15,39 @@ function stagger() {
   return new Promise(resolve => setTimeout(resolve, STAGGER_DELAY));
 }
 
-async function fetchWithRetry(url, retries = 3, backoff = 1000) {
+async function fetchWithRetry(urlStr, retries = 3, backoff = 1000) {
+  let currentUrl = urlStr;
+  
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const response = await fetch(url);
+      const response = await fetch(currentUrl);
       if (response.status === 429) {
         // Rate limited - wait and retry
         const waitTime = backoff * Math.pow(2, attempt);
-        console.warn(`Rate limited on ${url}, retrying in ${waitTime}ms...`);
+        console.warn(`Rate limited on ${currentUrl}, retrying in ${waitTime}ms...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
         continue;
       }
+      
+      // If the proxy returns forbidden/unauthorized (e.g. someone else cloned the repo)
+      if (response.status === 401 || response.status === 403) {
+        console.warn(`Proxy authentication failed. Falling back to public API...`);
+        currentUrl = currentUrl.replace(BASE_URL, FALLBACK_URL);
+        continue;
+      }
+      
       if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`);
       }
-      return response.json();
+      return await response.json();
     } catch (err) {
+      // If fetch completely fails (e.g. CORS error from restricted proxy), fallback to public API
+      if (currentUrl.startsWith(BASE_URL) && err.name === 'TypeError') {
+        console.warn(`Proxy connection failed (likely CORS). Falling back to public API...`);
+        currentUrl = currentUrl.replace(BASE_URL, FALLBACK_URL);
+        continue;
+      }
+      
       if (attempt === retries) throw err;
       const waitTime = backoff * Math.pow(2, attempt);
       await new Promise(resolve => setTimeout(resolve, waitTime));

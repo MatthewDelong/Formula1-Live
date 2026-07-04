@@ -1,15 +1,20 @@
-# F1 Live Timings Dashboard
+<div align="center">
+  <h1>🏎️ F1 Live Timings Dashboard</h1>
+  <p>A high-performance, real-time Formula 1 dashboard built with React 19. Provides live timings, dynamic 2D track maps, live car telemetry, race control messages, and strategic insights directly from the official F1 timing data.</p>
+</div>
 
-A real-time Formula 1 dashboard providing live timings, telemetry, race control messages, and strategic insights. Powered by the OpenF1 API.
+> **⚠️ Important Note regarding Live Data:** The primary OpenF1 proxy authentication is restricted to the Cloudflare Worker deployed for the live site. However, if you clone and run this app locally, it will automatically fall back to the public `api.openf1.org` endpoint so you can still use the dashboard seamlessly!
 
-## Features
+## ✨ Features
 
-- **Live Timing**: Real-time leaderboard with intervals, gaps, and best sectors.
-- **Weather & Race Control**: Live track/air temperature updates and official race control messages (flags, safety cars, etc.).
-- **Gaps & Intervals**: Visual representation of gaps to the leader and best lap comparisons.
-- **Interactive Charts**: Track lap time progression and position changes over the course of the session using Recharts.
-- **Strategy Insights**: Comprehensive overview of tire strategies, stint lengths, and pit stop history.
-- **Smart Session Selection**: Automatically highlights active live sessions or recently completed sessions.
+- **⏱️ Live Timing Board**: Real-time leaderboard with driver intervals, gaps, tire age, and best sector times painted in classic F1 purple/green/yellow.
+- **🗺️ Dynamic 2D Track Radar (Live Only)**: Mathematically constructs the circuit outline in real-time and renders live, moving car dots on the track based on raw X/Y telemetry coordinates.
+- **🏎️ Live Telemetry (Live Only)**: View live RPM, Speed, Gear, Throttle, Brake, and ERS/DRS deployment graphs for any driver on the grid.
+- **📻 Team Radio**: Listen to unfiltered, live team radio transmissions in a dedicated popup player (bypassing strict browser CORS blocking).
+- **📡 Race Control**: Live track/air temperature updates, wind speeds, and official race control messages (flags, safety cars, lap deletions).
+- **📊 Gaps & Intervals**: Visual representation of gaps to the race leader and best lap comparisons using Recharts.
+- **🔄 Strategy Insights**: Comprehensive overview of tire strategies, stint lengths, and complete pit stop history.
+- **📱 Progressive Web App (PWA)**: Fully installable as a native app on mobile and desktop devices.
 
 ## Tech Stack
 

@@ -65,7 +65,7 @@ export default function Standings({ year }) {
   }
 
   return (
-    <div className="dashboard-grid fade-in" style={{ gridTemplateColumns: '1fr 1fr' }}>
+    <div className="dashboard-grid fade-in">
       
       {/* DRIVERS STANDINGS */}
       <div className="panel">

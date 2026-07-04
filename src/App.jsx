@@ -16,6 +16,7 @@ import {
   getWeather,
   getRaceControl,
   getPitStops,
+  getTeamRadio,
 } from "./services/api.js";
 import {
   getAvailableYears,
@@ -33,6 +34,9 @@ import RaceControlFeed from "./components/RaceControlFeed.jsx";
 import TireStrategy from "./components/TireStrategy.jsx";
 import LapTimeChart from "./components/LapTimeChart.jsx";
 import Standings from "./components/Standings.jsx";
+import TeamRadio from "./components/TeamRadio.jsx";
+import TelemetryDashboard from "./components/TelemetryDashboard.jsx";
+import TrackMap from "./components/TrackMap.jsx";
 import SpeedComparison from "./components/SpeedComparison.jsx";
 import PositionChart from "./components/PositionChart.jsx";
 import PitStopTable from "./components/PitStopTable.jsx";
@@ -63,6 +67,13 @@ export default function App() {
     localStorage.setItem("useKmh", useKmh);
   }, [useKmh]);
 
+  // Reset tab if leaving a live session while on Track Map or Telemetry
+  useEffect(() => {
+    if (!isLive && (activeTab === "trackmap" || activeTab === "telemetry")) {
+      setActiveTab("timing");
+    }
+  }, [isLive, activeTab]);
+
   // ===== Data State =====
   const [drivers, setDrivers] = useState([]);
   const [laps, setLaps] = useState([]);
@@ -72,6 +83,7 @@ export default function App() {
   const [weather, setWeather] = useState(null);
   const [raceControl, setRaceControl] = useState([]);
   const [pitStops, setPitStops] = useState([]);
+  const [teamRadio, setTeamRadio] = useState([]);
   const [dataLoading, setDataLoading] = useState(false);
   const [dataError, setDataError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -189,6 +201,7 @@ export default function App() {
         weatherData,
         rcData,
         pitData,
+        radioData,
       ] = await Promise.all([
         getDrivers(selectedSessionKey).catch(() => []),
         getLaps(selectedSessionKey).catch(() => []),
@@ -198,6 +211,7 @@ export default function App() {
         getWeather(selectedSessionKey).catch(() => []),
         getRaceControl(selectedSessionKey).catch(() => []),
         getPitStops(selectedSessionKey).catch(() => []),
+        getTeamRadio(selectedSessionKey).catch(() => []),
       ]);
 
       setDrivers(driversData || []);
@@ -212,6 +226,7 @@ export default function App() {
       );
       setRaceControl(rcData || []);
       setPitStops(pitData || []);
+      setTeamRadio(radioData || []);
       setLastUpdated(new Date());
       setCountdown(refreshInterval / 1000);
       setConnectionStatus("connected");
@@ -564,6 +579,28 @@ export default function App() {
             >
               🏆 Standings
             </button>
+            <button
+              className={`tab ${activeTab === "teamradio" ? "active" : ""}`}
+              onClick={() => setActiveTab("teamradio")}
+            >
+              📻 Team Radio
+            </button>
+            {isLive && (
+              <button
+                className={`tab ${activeTab === "telemetry" ? "active" : ""}`}
+                onClick={() => setActiveTab("telemetry")}
+              >
+                🏎️ Telemetry
+              </button>
+            )}
+            {isLive && (
+              <button
+                className={`tab ${activeTab === "trackmap" ? "active" : ""}`}
+                onClick={() => setActiveTab("trackmap")}
+              >
+                🗺️ Track Map
+              </button>
+            )}
           </div>
 
           {/* Loading State */}
@@ -815,6 +852,27 @@ export default function App() {
           {/* ===== STANDINGS TAB ===== */}
           {activeTab === "standings" && (
             <Standings year={selectedYear} />
+          )}
+
+          {/* ===== TEAM RADIO TAB ===== */}
+          {activeTab === "teamradio" && !dataLoading && (
+            <div className="dashboard-grid fade-in">
+              <TeamRadio radios={teamRadio} drivers={drivers} />
+            </div>
+          )}
+
+          {/* ===== TELEMETRY TAB ===== */}
+          {activeTab === "telemetry" && isLive && !dataLoading && (
+            <div className="dashboard-grid fade-in">
+              <TelemetryDashboard sessionKey={selectedSessionKey} drivers={drivers} year={selectedYear} />
+            </div>
+          )}
+
+          {/* ===== TRACK MAP TAB ===== */}
+          {activeTab === "trackmap" && isLive && !dataLoading && (
+            <div className="dashboard-grid fade-in">
+              <TrackMap sessionKey={selectedSessionKey} drivers={drivers} />
+            </div>
           )}
         </div>
       </main>

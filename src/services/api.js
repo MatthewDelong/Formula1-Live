@@ -47,6 +47,10 @@ async function fetchWithRetry(urlStr, retries = 3, backoff = 1000) {
         continue;
       }
       
+      if (response.status === 404) {
+        return [];
+      }
+      
       if (!response.ok) {
         throw new Error(`API error: ${response.status} ${response.statusText}`);
       }

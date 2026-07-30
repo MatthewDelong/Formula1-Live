@@ -199,6 +199,8 @@ export default function App() {
 
     try {
       setDataError(null);
+      setDataLoading(true);
+
       const [
         driversData,
         lapsData,
@@ -234,6 +236,7 @@ export default function App() {
       setRaceControl(rcData || []);
       setPitStops(pitData || []);
       setTeamRadio(radioData || []);
+      
       setLastUpdated(new Date());
       setCountdown(refreshInterval / 1000);
       setConnectionStatus("connected");

@@ -4,12 +4,11 @@
  * Includes rate limiting protection with retry and staggered requests
  */
 
-const isDev = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV;
-const BASE_URL = isDev ? '/api-proxy/v1' : 'https://openf1-proxy.matthew-delong73.workers.dev/v1';
+const BASE_URL = 'https://api.openf1.org/v1';
 const FALLBACK_URL = 'https://api.openf1.org/v1';
 
 let requestQueue = Promise.resolve();
-const STAGGER_DELAY = 1200; // ms between requests
+const STAGGER_DELAY = 200; // ms between requests
 
 function enqueueFetch(urlStr) {
   const promise = requestQueue.then(async () => {

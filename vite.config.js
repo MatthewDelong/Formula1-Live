@@ -17,7 +17,7 @@ function apiCachePlugin() {
       server.middlewares.use('/api-proxy', async (req, res, next) => {
         try {
           const urlPathAndQuery = req.url; 
-          const targetUrl = `https://api.openf1.org${urlPathAndQuery}`;
+          const targetUrl = `https://openf1-proxy.matthew-delong73.workers.dev${urlPathAndQuery}`;
           
           const hash = crypto.createHash('md5').update(urlPathAndQuery).digest('hex');
           const prefix = urlPathAndQuery.split('?')[0].replace(/[\/\\]/g, '_');
@@ -33,7 +33,12 @@ function apiCachePlugin() {
             }
           }
           
-          const response = await fetch(targetUrl);
+          const response = await fetch(targetUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'application/json'
+            }
+          });
           
           if (!response.ok) {
             res.statusCode = response.status;

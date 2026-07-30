@@ -4,16 +4,27 @@
  * Includes rate limiting protection with retry and staggered requests
  */
 
-const BASE_URL = 'https://openf1-proxy.matthew-delong73.workers.dev/v1';
+const isDev = typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV;
+const BASE_URL = isDev ? '/api-proxy/v1' : 'https://openf1-proxy.matthew-delong73.workers.dev/v1';
 const FALLBACK_URL = 'https://api.openf1.org/v1';
 
-// Simple request queue to stagger concurrent requests
 let requestQueue = Promise.resolve();
-const STAGGER_DELAY = 150; // ms between requests
+const STAGGER_DELAY = 1200; // ms between requests
 
-function stagger() {
-  return new Promise(resolve => setTimeout(resolve, STAGGER_DELAY));
+function enqueueFetch(urlStr) {
+  const promise = requestQueue.then(async () => {
+    await new Promise(resolve => setTimeout(resolve, STAGGER_DELAY));
+    return fetchWithRetry(urlStr);
+  });
+  
+  // ensure queue doesn't halt if a request fails
+  requestQueue = promise.catch(() => {});
+  return promise;
 }
+
+// In-memory cache for API responses (TTL: 8 seconds to cover strict mode and rapid reloads)
+const apiCache = new Map();
+const CACHE_TTL = 8000;
 
 async function fetchWithRetry(urlStr, retries = 3, backoff = 1000) {
   let currentUrl = urlStr;
@@ -56,16 +67,34 @@ async function fetchWithRetry(urlStr, retries = 3, backoff = 1000) {
 }
 
 async function fetchAPI(endpoint, params = {}) {
-  const url = new URL(`${BASE_URL}${endpoint}`);
+  const url = new URL(`${BASE_URL}${endpoint}`, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       url.searchParams.append(key, value);
     }
   });
 
-  // Stagger requests to avoid rate limiting
-  await stagger();
-  return fetchWithRetry(url.toString());
+  const cacheKey = url.toString();
+  if (apiCache.has(cacheKey)) {
+    const cached = apiCache.get(cacheKey);
+    if (Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.promise ? cached.promise : cached.data;
+    }
+  }
+
+  // Cache the promise so concurrent identical requests wait for the same fetch
+  const promise = enqueueFetch(cacheKey);
+  
+  apiCache.set(cacheKey, { promise, timestamp: Date.now() });
+  
+  try {
+    const data = await promise;
+    apiCache.set(cacheKey, { data, timestamp: Date.now() });
+    return data;
+  } catch (err) {
+    apiCache.delete(cacheKey);
+    throw err;
+  }
 }
 
 // ===== SESSION =====

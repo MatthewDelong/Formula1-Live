@@ -167,10 +167,17 @@ export default function App() {
             if (bestSession) {
               setSelectedSessionKey(bestSession.session_key);
               setSelectedSession(bestSession);
+              
+              const now = new Date();
+              const start = new Date(bestSession.date_start);
+              const end = new Date(bestSession.date_end);
+              const live = now >= start && now <= end;
+              setAutoRefresh(live);
             } else if (descending.length > 0) {
               // Fallback: pick the first session in descending order
               setSelectedSessionKey(descending[0].session_key);
               setSelectedSession(descending[0]);
+              setAutoRefresh(false);
             }
           }
         }
@@ -280,7 +287,9 @@ export default function App() {
       const now = new Date();
       const start = new Date(session.date_start);
       const end = new Date(session.date_end);
-      setIsLive(now >= start && now <= end);
+      const live = now >= start && now <= end;
+      setIsLive(live);
+      setAutoRefresh(live);
     }
   };
 

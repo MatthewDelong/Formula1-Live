@@ -1,10 +1,66 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import fs from 'fs'
+import path from 'path'
+import crypto from 'crypto'
 
+function apiCachePlugin() {
+  const cacheDir = path.resolve(process.cwd(), '.api_cache');
+  if (!fs.existsSync(cacheDir)) {
+    fs.mkdirSync(cacheDir, { recursive: true });
+  }
+
+  return {
+    name: 'api-cache-plugin',
+    configureServer(server) {
+      server.middlewares.use('/api-proxy', async (req, res, next) => {
+        try {
+          const urlPathAndQuery = req.url; 
+          const targetUrl = `https://api.openf1.org${urlPathAndQuery}`;
+          
+          const hash = crypto.createHash('md5').update(urlPathAndQuery).digest('hex');
+          const prefix = urlPathAndQuery.split('?')[0].replace(/[\/\\]/g, '_');
+          const safeName = `${prefix}_${hash}.json`;
+          const cachePath = path.join(cacheDir, safeName);
+          
+          if (fs.existsSync(cachePath)) {
+            const stats = fs.statSync(cachePath);
+            if (Date.now() - stats.mtimeMs < 24 * 60 * 60 * 1000) {
+              res.setHeader('Content-Type', 'application/json');
+              res.setHeader('X-Cache', 'HIT');
+              return res.end(fs.readFileSync(cachePath));
+            }
+          }
+          
+          const response = await fetch(targetUrl);
+          
+          if (!response.ok) {
+            res.statusCode = response.status;
+            res.setHeader('Content-Type', 'application/json');
+            return res.end(JSON.stringify({ error: `API returned ${response.status}` }));
+          }
+          
+          const text = await response.text();
+          fs.writeFileSync(cachePath, text);
+          
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('X-Cache', 'MISS');
+          res.end(text);
+        } catch (e) {
+          console.error('Proxy error:', e);
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'Internal proxy error' }));
+        }
+      });
+    }
+  }
+}
 export default defineConfig({
   plugins: [
     react(),
+    apiCachePlugin(),
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'pwa.png'],

@@ -101,13 +101,15 @@ export default function App() {
       try {
         const data = await getSessions({ year: selectedYear });
         if (!cancelled && data) {
+          // Filter out cancelled sessions (e.g. Sakhir and Jeddah in 2026)
+          const activeSessions = data.filter(s => !s.is_cancelled);
+          
           // Sort sessions chronologically (ascending by date)
-          const chronological = data.sort(
+          const chronological = activeSessions.sort(
             (a, b) => new Date(a.date_start) - new Date(b.date_start),
           );
-          // Store sessions sorted descending for the dropdown (most recent first)
-          const descending = [...chronological].reverse();
-          setSessions(descending);
+          // Set sessions chronologically so pre-season is first
+          setSessions(chronological);
 
           // Smart session selection: find the best session to show
           if (chronological.length > 0 && !selectedSessionKey) {
@@ -173,10 +175,10 @@ export default function App() {
               const end = new Date(bestSession.date_end);
               const live = now >= start && now <= end;
               setAutoRefresh(live);
-            } else if (descending.length > 0) {
-              // Fallback: pick the first session in descending order
-              setSelectedSessionKey(descending[0].session_key);
-              setSelectedSession(descending[0]);
+            } else if (chronological.length > 0) {
+              // Fallback: pick the first session
+              setSelectedSessionKey(chronological[0].session_key);
+              setSelectedSession(chronological[0]);
               setAutoRefresh(false);
             }
           }
@@ -330,21 +332,22 @@ export default function App() {
     return validPits.reduce((min, pit) => pit.pit_duration < min.pit_duration ? pit : min, validPits[0]);
   }, [pitStops]);
 
-  // Group sessions by meeting
+  // Group sessions by meeting while preserving chronological order
   const groupedSessions = useMemo(() => {
-    const groups = {};
+    const groups = new Map();
     for (const s of sessions) {
       const meetingKey = s.meeting_key || s.location || "Unknown";
-      if (!groups[meetingKey]) {
-        groups[meetingKey] = {
+      if (!groups.has(meetingKey)) {
+        groups.set(meetingKey, {
+          meetingKey: meetingKey,
           meetingName: s.circuit_short_name || s.location || "Unknown",
           country: s.country_name || "",
           sessions: [],
-        };
+        });
       }
-      groups[meetingKey].sessions.push(s);
+      groups.get(meetingKey).sessions.push(s);
     }
-    return groups;
+    return Array.from(groups.values());
   }, [sessions]);
 
   // Get current flag from race control
@@ -408,9 +411,9 @@ export default function App() {
               ) : sessions.length === 0 ? (
                 <option>No sessions found</option>
               ) : (
-                Object.entries(groupedSessions).map(([meetKey, group]) => (
+                groupedSessions.map((group) => (
                   <optgroup
-                    key={meetKey}
+                    key={group.meetingKey}
                     label={`🏁 ${group.meetingName} — ${group.country}`}
                   >
                     {group.sessions.map((s) => (

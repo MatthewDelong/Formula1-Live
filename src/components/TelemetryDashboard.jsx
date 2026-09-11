@@ -25,7 +25,11 @@ export default function TelemetryDashboard({ sessionKey, drivers, year = 2026 })
       try {
         // Fetch only the latest car data (ideally we'd filter by time, but for now fetch and take last)
         // To be safe on bandwidth, we'll just do it every 10 seconds
-        const res = await fetch(`https://api.openf1.org/v1/car_data?session_key=${sessionKey}&driver_number=${selectedDriver}`);
+        const isDev = import.meta.env.DEV;
+        const url = isDev
+          ? `/api-proxy/car_data?session_key=${sessionKey}&driver_number=${selectedDriver}`
+          : `https://openf1-proxy.matthew-delong73.workers.dev/v1/car_data?session_key=${sessionKey}&driver_number=${selectedDriver}`;
+        const res = await fetch(url);
         if (!res.ok) throw new Error('Network error');
         const data = await res.json();
         

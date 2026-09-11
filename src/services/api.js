@@ -4,8 +4,7 @@
  * Includes rate limiting protection with retry and staggered requests
  */
 
-const BASE_URL = 'https://api.openf1.org/v1';
-const FALLBACK_URL = 'https://api.openf1.org/v1';
+const BASE_URL = 'https://openf1-proxy.matthew-delong73.workers.dev/v1';
 
 let requestQueue = Promise.resolve();
 const STAGGER_DELAY = 200; // ms between requests
@@ -39,15 +38,12 @@ async function fetchWithRetry(urlStr, retries = 3, backoff = 1000) {
         continue;
       }
       
-      // If the proxy returns forbidden/unauthorized (e.g. someone else cloned the repo)
-      if (response.status === 401 || response.status === 403) {
-        console.warn(`Proxy authentication failed. Falling back to public API...`);
-        currentUrl = currentUrl.replace(BASE_URL, FALLBACK_URL);
-        continue;
-      }
-      
       if (response.status === 404) {
         return [];
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('OpenF1 Worker returned 401/403 — check your Worker is configured and allows this origin.');
       }
       
       if (!response.ok) {
@@ -55,13 +51,6 @@ async function fetchWithRetry(urlStr, retries = 3, backoff = 1000) {
       }
       return await response.json();
     } catch (err) {
-      // If fetch completely fails (e.g. CORS error from restricted proxy), fallback to public API
-      if (currentUrl.startsWith(BASE_URL) && err.name === 'TypeError') {
-        console.warn(`Proxy connection failed (likely CORS). Falling back to public API...`);
-        currentUrl = currentUrl.replace(BASE_URL, FALLBACK_URL);
-        continue;
-      }
-      
       if (attempt === retries) throw err;
       const waitTime = backoff * Math.pow(2, attempt);
       await new Promise(resolve => setTimeout(resolve, waitTime));
@@ -70,7 +59,7 @@ async function fetchWithRetry(urlStr, retries = 3, backoff = 1000) {
 }
 
 async function fetchAPI(endpoint, params = {}) {
-  const url = new URL(`${BASE_URL}${endpoint}`, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+  const url = new URL(`${BASE_URL}${endpoint}`);
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       url.searchParams.append(key, value);
@@ -78,6 +67,7 @@ async function fetchAPI(endpoint, params = {}) {
   });
 
   const cacheKey = url.toString();
+
   if (apiCache.has(cacheKey)) {
     const cached = apiCache.get(cacheKey);
     if (Date.now() - cached.timestamp < CACHE_TTL) {
@@ -87,7 +77,6 @@ async function fetchAPI(endpoint, params = {}) {
 
   // Cache the promise so concurrent identical requests wait for the same fetch
   const promise = enqueueFetch(cacheKey);
-  
   apiCache.set(cacheKey, { promise, timestamp: Date.now() });
   
   try {

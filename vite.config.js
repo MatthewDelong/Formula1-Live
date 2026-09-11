@@ -15,9 +15,18 @@ function apiCachePlugin() {
     name: 'api-cache-plugin',
     configureServer(server) {
       server.middlewares.use('/api-proxy', async (req, res, next) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', '*');
+        
+        if (req.method === 'OPTIONS') {
+          res.statusCode = 204;
+          return res.end();
+        }
+
         try {
           const urlPathAndQuery = req.url; 
-          const targetUrl = `https://openf1-proxy.matthew-delong73.workers.dev${urlPathAndQuery}`;
+          const targetUrl = `https://openf1-proxy.matthew-delong73.workers.dev/v1${urlPathAndQuery}`;
           
           const hash = crypto.createHash('md5').update(urlPathAndQuery).digest('hex');
           const prefix = urlPathAndQuery.split('?')[0].replace(/[\/\\]/g, '_');
@@ -41,9 +50,11 @@ function apiCachePlugin() {
           });
           
           if (!response.ok) {
+            console.warn(`Target OpenF1 API returned ${response.status} for ${targetUrl}`);
             res.statusCode = response.status;
             res.setHeader('Content-Type', 'application/json');
-            return res.end(JSON.stringify({ error: `API returned ${response.status}` }));
+            const body = await response.text().catch(() => '{}');
+            return res.end(body);
           }
           
           const text = await response.text();

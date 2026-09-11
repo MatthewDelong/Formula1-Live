@@ -24,7 +24,11 @@ export default function TrackMap({ sessionKey, drivers }) {
         // Try up to 5 drivers to find one with a full location trace
         for (let i = 0; i < Math.min(drivers.length, 5); i++) {
           const driverForOutline = drivers[i].driver_number;
-          const res = await fetch(`https://api.openf1.org/v1/location?session_key=${sessionKey}&driver_number=${driverForOutline}`);
+          const isDev = import.meta.env.DEV;
+          const url = isDev 
+            ? `/api-proxy/location?session_key=${sessionKey}&driver_number=${driverForOutline}`
+            : `https://openf1-proxy.matthew-delong73.workers.dev/v1/location?session_key=${sessionKey}&driver_number=${driverForOutline}`;
+          const res = await fetch(url);
           if (!res.ok) continue;
           
           const data = await res.json();
@@ -77,20 +81,24 @@ export default function TrackMap({ sessionKey, drivers }) {
     if (!sessionKey || !drivers || drivers.length === 0 || trackPoints.length === 0) return;
 
     let cancelled = false;
-    let intervalId;
-
     const fetchLivePositions = async () => {
       try {
-        let url = `https://api.openf1.org/v1/location?session_key=${sessionKey}`;
-        if (lastUpdateRef.current) {
-          url += `&date>=${lastUpdateRef.current}`;
+        const isDev = import.meta.env.DEV;
+        let requestUrl;
+        if (isDev) {
+          requestUrl = `/api-proxy/location?session_key=${sessionKey}${lastUpdateRef.current ? `&date>=${lastUpdateRef.current}` : `&date>=${new Date(Date.now() - 15000).toISOString()}`}`;
         } else {
-          // If first fetch and no fallback, fetch last 15 seconds
-          const tenSecAgo = new Date(Date.now() - 15000).toISOString();
-          url += `&date>=${tenSecAgo}`;
+          let target = `https://openf1-proxy.matthew-delong73.workers.dev/v1/location?session_key=${sessionKey}`;
+          if (lastUpdateRef.current) {
+            target += `&date>=${lastUpdateRef.current}`;
+          } else {
+            const tenSecAgo = new Date(Date.now() - 15000).toISOString();
+            target += `&date>=${tenSecAgo}`;
+          }
+          requestUrl = target;
         }
 
-        const res = await fetch(url);
+        const res = await fetch(requestUrl);
         if (!res.ok) return;
         const data = await res.json();
         

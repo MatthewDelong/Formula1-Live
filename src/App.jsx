@@ -87,11 +87,13 @@ export default function App() {
   const [dataLoading, setDataLoading] = useState(false);
   const [dataError, setDataError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [countdown, setCountdown] = useState(refreshInterval / 1000);
 
   const intervalRef = useRef(null);
   const countdownRef = useRef(null);
   const sessionKeyRef = useRef(null);
+  const isInitialLoad = useRef(true);
 
   // ===== Load Sessions =====
   useEffect(() => {
@@ -196,12 +198,18 @@ export default function App() {
   }, [selectedYear]);
 
   // ===== Load Session Data =====
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (showSpinner = false) => {
     if (!selectedSessionKey) return;
+
+    // Only show the full-page spinner on true initial loads
+    if (showSpinner) {
+      setDataLoading(true);
+    } else {
+      setIsSyncing(true);
+    }
 
     try {
       setDataError(null);
-      setDataLoading(true);
 
       const [
         driversData,
@@ -246,20 +254,24 @@ export default function App() {
       setDataError(err.message);
       setConnectionStatus("disconnected");
     } finally {
-      setDataLoading(false);
+      if (showSpinner) {
+        setDataLoading(false);
+      } else {
+        setIsSyncing(false);
+      }
     }
   }, [selectedSessionKey, refreshInterval]);
 
-  // Initial load
+  // Initial load (show spinner)
   useEffect(() => {
     if (selectedSessionKey) {
       sessionKeyRef.current = selectedSessionKey;
-      setDataLoading(true);
-      loadData();
+      isInitialLoad.current = true;
+      loadData(true);
     }
   }, [selectedSessionKey]);
 
-  // Auto-refresh
+  // Auto-refresh (silent background update — no spinner)
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     if (countdownRef.current) clearInterval(countdownRef.current);
@@ -267,7 +279,7 @@ export default function App() {
     if (autoRefresh && selectedSessionKey) {
       intervalRef.current = setInterval(() => {
         if (sessionKeyRef.current === selectedSessionKey) {
-          loadData();
+          loadData(false); // silent refresh
         }
       }, refreshInterval);
 
@@ -482,7 +494,7 @@ export default function App() {
       {autoRefresh && (
         <div className="auto-update-bar">
           <div
-            className="auto-update-progress"
+            className={`auto-update-progress${isSyncing ? ' syncing' : ''}`}
             style={{
               width: `${((refreshInterval / 1000 - countdown) / (refreshInterval / 1000)) * 100}%`,
             }}
@@ -545,10 +557,16 @@ export default function App() {
         )}
         {lastUpdated && (
           <div className="status-item" style={{ marginLeft: "auto" }}>
-            <span className="status-label">Last Update</span>
-            <span className="status-value">
-              {formatTime(lastUpdated.toISOString())}
-            </span>
+            {isSyncing ? (
+              <span className="status-label syncing-label">⟳ Syncing…</span>
+            ) : (
+              <>
+                <span className="status-label">Last Update</span>
+                <span className="status-value">
+                  {formatTime(lastUpdated.toISOString())}
+                </span>
+              </>
+            )}
           </div>
         )}
       </div>

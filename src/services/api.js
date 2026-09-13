@@ -4,7 +4,9 @@
  * Includes rate limiting protection with retry and staggered requests
  */
 
-const BASE_URL = 'https://openf1-proxy.matthew-delong73.workers.dev/v1';
+const BASE_URL = import.meta.env.DEV 
+  ? '/api-proxy' 
+  : 'https://openf1-proxy.matthew-delong73.workers.dev/v1';
 
 let requestQueue = Promise.resolve();
 const STAGGER_DELAY = 200; // ms between requests
@@ -59,7 +61,7 @@ async function fetchWithRetry(urlStr, retries = 3, backoff = 1000) {
 }
 
 async function fetchAPI(endpoint, params = {}) {
-  const url = new URL(`${BASE_URL}${endpoint}`);
+  const url = new URL(`${BASE_URL}${endpoint}`, window.location.origin);
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       url.searchParams.append(key, value);

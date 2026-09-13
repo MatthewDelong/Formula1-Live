@@ -35,7 +35,7 @@ function apiCachePlugin() {
           
           if (fs.existsSync(cachePath)) {
             const stats = fs.statSync(cachePath);
-            if (Date.now() - stats.mtimeMs < 24 * 60 * 60 * 1000) {
+            if (Date.now() - stats.mtimeMs < 5000) {
               res.setHeader('Content-Type', 'application/json');
               res.setHeader('X-Cache', 'HIT');
               return res.end(fs.readFileSync(cachePath));
@@ -45,7 +45,8 @@ function apiCachePlugin() {
           const response = await fetch(targetUrl, {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Accept': 'application/json'
+              'Accept': 'application/json',
+              'Origin': 'https://f1-telemetry.co.uk'
             }
           });
           

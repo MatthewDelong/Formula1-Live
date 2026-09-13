@@ -9,14 +9,17 @@ export default function TrackMap({ sessionKey, drivers }) {
 
   // Reference timestamp to fetch only new data
   const lastUpdateRef = useRef(null);
+  const fetchedOutlineForSession = useRef(null);
 
   // 1. Fetch Track Outline (using one driver's full session location)
   useEffect(() => {
     if (!sessionKey || !drivers || drivers.length === 0) return;
+    if (fetchedOutlineForSession.current === sessionKey) return;
 
     let cancelled = false;
 
     const fetchTrackOutline = async () => {
+      fetchedOutlineForSession.current = sessionKey;
       setLoading(true);
       try {
         let validData = null;
@@ -64,6 +67,7 @@ export default function TrackMap({ sessionKey, drivers }) {
       } catch (err) {
         if (!cancelled) setError("Error loading track map.");
         console.error(err);
+        fetchedOutlineForSession.current = null;
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -132,7 +136,7 @@ export default function TrackMap({ sessionKey, drivers }) {
     };
 
     fetchLivePositions();
-    intervalId = setInterval(fetchLivePositions, 2000); // 2 second refresh for smooth map
+    const intervalId = setInterval(fetchLivePositions, 2000); // 2 second refresh for smooth map
 
     return () => {
       cancelled = true;
@@ -211,8 +215,8 @@ export default function TrackMap({ sessionKey, drivers }) {
           <polyline
             points={trackPoints.map(p => `${p.x},${-p.y}`).join(' ')}
             fill="none"
-            stroke="var(--border-secondary)"
-            strokeWidth={Math.max(100, (viewBox.split(' ')[2] / 150))} // Dynamic stroke width based on map scale
+            stroke="rgba(255, 255, 255, 0.3)"
+            strokeWidth={Math.max(200, (viewBox.split(' ')[2] / 80))} // Thicker outer border for visibility
             strokeLinejoin="round"
             strokeLinecap="round"
           />
@@ -220,8 +224,8 @@ export default function TrackMap({ sessionKey, drivers }) {
           <polyline
             points={trackPoints.map(p => `${p.x},${-p.y}`).join(' ')}
             fill="none"
-            stroke="var(--bg-primary)"
-            strokeWidth={Math.max(50, (viewBox.split(' ')[2] / 300))} // Inner track
+            stroke="#333"
+            strokeWidth={Math.max(120, (viewBox.split(' ')[2] / 150))} // Inner track
             strokeLinejoin="round"
             strokeLinecap="round"
           />
